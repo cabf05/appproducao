@@ -7,6 +7,9 @@ from fpdf import FPDF
 st.set_page_config(page_title="Resumo de Produção", layout="wide")
 st.title("Resumo de Produção por Local")
 
+# Entrada da data de produção
+data_producao = st.date_input("Data de Produção")
+
 # Upload das planilhas
 uploaded_dados = st.file_uploader("Faça upload da planilha Dados_Produtos.xlsx", type=["xlsx"])
 uploaded_cadastro = st.file_uploader("Faça upload da planilha CadastroTotal.xlsx", type=["xlsx"])
@@ -66,11 +69,14 @@ if uploaded_dados and uploaded_cadastro:
               .agg({'quantidade_preparar': 'sum'})
         )
 
+        # Formata data
+        data_str = data_producao.strftime("%d-%m-%Y")
+
         # Geração do PDF
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
 
-        # Exibição no app e criação de PDF
+        # Para cada local, exibe e adiciona página
         for loc in summary['local'].unique():
             st.subheader(f"Local: {loc}")
             df_loc = summary[summary['local'] == loc][['produto', 'quantidade_preparar']]
@@ -80,17 +86,38 @@ if uploaded_dados and uploaded_cadastro:
             })
             st.table(df_loc)
 
-            # Nova página PDF
+            # Nova página no PDF
             pdf.add_page()
             pdf.set_font("Arial", size=12)
+            # Cabeçalho com data e local
+            pdf.cell(0, 10, f"Data de Produção: {data_str}", ln=True)
             pdf.cell(0, 10, f"Local: {loc}", ln=True)
             pdf.ln(5)
-            for _, row in df_loc.iterrows():
-                pdf.cell(0, 8, f"{row['Produto']}: {row['Quantidade a Preparar']}", ln=True)
 
-        # Botão de download do PDF
+            # Tabela com cores alternadas
+            pdf.set_font("Arial", size=10)
+            # Cabeçalho da tabela
+            col_widths = [90, 90]
+            headers = ['Produto', 'Quantidade a Preparar']
+            # Desenha cabeçalho
+            for i, header in enumerate(headers):
+                pdf.set_fill_color(200, 200, 200)
+                pdf.cell(col_widths[i], 8, header, border=1, align='C', fill=True)
+            pdf.ln()
+            # Linhas de dados
+            for idx, row in df_loc.iterrows():
+                fill = idx % 2 == 1
+                if fill:
+                    pdf.set_fill_color(230, 230, 230)
+                else:
+                    pdf.set_fill_color(255, 255, 255)
+                pdf.cell(col_widths[0], 6, str(row['Produto']), border=1, fill=fill)
+                pdf.cell(col_widths[1], 6, str(row['Quantidade a Preparar']), border=1, fill=fill)
+                pdf.ln()
+
+        # Download do PDF
         pdf_buffer = pdf.output(dest='S')  # retorna bytearray
-        pdf_bytes = bytes(pdf_buffer)       # converte para bytes
+        pdf_bytes = bytes(pdf_buffer)
         st.download_button(
             label="Download do resumo em PDF",
             data=pdf_bytes,
