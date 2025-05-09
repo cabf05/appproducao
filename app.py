@@ -9,8 +9,8 @@ st.set_page_config(page_title="Resumo de Produção", layout="wide")
 st.title("Resumo de Produção por Local")
 
 # Upload das planilhas
-uploaded_dados = st.file_uploader("Faça upload da planilha Dados_Produtos.xlsx", type=["xlsx"] )
-uploaded_cadastro = st.file_uploader("Faça upload da planilha CadastroTotal.xlsx", type=["xlsx"] )
+uploaded_dados = st.file_uploader("Faça upload da planilha Dados_Produtos.xlsx", type=["xlsx"])
+uploaded_cadastro = st.file_uploader("Faça upload da planilha CadastroTotal.xlsx", type=["xlsx"])
 
 if uploaded_dados and uploaded_cadastro:
     try:
@@ -18,13 +18,15 @@ if uploaded_dados and uploaded_cadastro:
         dados = pd.read_excel(uploaded_dados)
         cadastro = pd.read_excel(uploaded_cadastro)
 
-        # Limpeza e padronização de nomes de colunas
-        dados.columns = dados.columns.str.strip()
-        cadastro.columns = cadastro.columns.str.strip()
+        # Limpeza e padronização de nomes de colunas para lowercase
+        dados.columns = dados.columns.str.strip().str.lower()
+        cadastro.columns = cadastro.columns.str.strip().str.lower()
 
-        # Verificar colunas necessárias
-        required_dados = ['Local', 'Produto', 'Quantidade']
-        required_cadastro = ['Produto', 'FATOR CALCULO PRODUCAO']
+        # Definição de colunas esperadas
+        required_dados = ['local', 'produto', 'quantidade']
+        required_cadastro = ['produto', 'fator calculo producao']
+
+        # Verificação de colunas faltantes
         missing_d = [col for col in required_dados if col not in dados.columns]
         missing_c = [col for col in required_cadastro if col not in cadastro.columns]
         if missing_d or missing_c:
@@ -35,39 +37,53 @@ if uploaded_dados and uploaded_cadastro:
             )
             st.stop()
 
-        # Junção dos dados pelo campo Produto
+        # Renomear colunas internamente para facilitar uso
+        dados = dados.rename(columns={
+            'local': 'local',
+            'produto': 'produto',
+            'quantidade': 'quantidade'
+        })
+        cadastro = cadastro.rename(columns={
+            'produto': 'produto',
+            'fator calculo producao': 'fator'
+        })
+
+        # Junção dos dados pelo campo produto
         df = pd.merge(
             dados,
-            cadastro[['Produto', 'FATOR CALCULO PRODUCAO']],
-            on='Produto',
+            cadastro[['produto', 'fator']],
+            on='produto',
             how='left'
         )
 
         # Tratar possíveis NaNs no fator
-        if df['FATOR CALCULO PRODUCAO'].isna().any():
-            missing_prod = df[df['FATOR CALCULO PRODUCAO'].isna()]['Produto'].unique()
-            st.warning(f"Fator de cálculo não encontrado para os produtos: {missing_prod}")
-            df['FATOR CALCULO PRODUCAO'] = df['FATOR CALCULO PRODUCAO'].fillna(1)
+        if df['fator'].isna().any():
+            missing_prod = df[df['fator'].isna()]['produto'].unique()
+            st.warning(f"Fator de cálculo não encontrado para os produtos: {list(missing_prod)}. Utilizando fator = 1.")
+            df['fator'] = df['fator'].fillna(1)
 
-        # Cálculo da Quantidade a Preparar
-        df['Quantidade a Preparar'] = df['Quantidade'] * df['FATOR CALCULO PRODUCAO']
+        # Cálculo da quantidade a preparar
+        df['quantidade_preparar'] = df['quantidade'] * df['fator']
 
-        # Resumo por Local e Produto
+        # Resumo por local e produto
         summary = (
             df
-            .groupby(['Local', 'Produto'])['Quantidade a Preparar']
+            .groupby(['local', 'produto'], as_index=False)[['quantidade_preparar']]
             .sum()
-            .reset_index()
         )
 
         # Criação do PDF
         pdf = FPDF()
 
         # Exibição no app e geração do PDF
-        locais = summary['Local'].unique()
+        locais = summary['local'].unique()
         for loc in locais:
             st.subheader(f"Local: {loc}")
-            df_loc = summary[summary['Local'] == loc][['Produto', 'Quantidade a Preparar']]
+            df_loc = summary[summary['local'] == loc][['produto', 'quantidade_preparar']]
+            df_loc = df_loc.rename(columns={
+                'produto': 'Produto',
+                'quantidade_preparar': 'Quantidade a Preparar'
+            })
             st.table(df_loc)
 
             # Nova página no PDF
