@@ -89,7 +89,8 @@ if uploaded_dados and uploaded_cadastro:
                 pdf.cell(0, 8, f"{row['Produto']}: {row['Quantidade a Preparar']}", ln=True)
 
         # Botão de download do PDF
-        pdf_bytes = pdf.output(dest='S')  # retorna bytearray
+        pdf_buffer = pdf.output(dest='S')  # retorna bytearray
+        pdf_bytes = bytes(pdf_buffer)       # converte para bytes
         st.download_button(
             label="Download do resumo em PDF",
             data=pdf_bytes,
