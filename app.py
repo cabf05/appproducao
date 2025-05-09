@@ -2,6 +2,7 @@
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 from fpdf import FPDF
 
 st.set_page_config(page_title="Resumo de Produção", layout="wide")
@@ -60,8 +61,8 @@ if uploaded_dados and uploaded_cadastro:
             df['local'] = df['local'].fillna('Desconhecido')
             df['fator'] = df['fator'].fillna(1)
 
-        # Cálculo da quantidade a preparar
-        df['quantidade_preparar'] = df['quantidade'] * df['fator']
+        # Cálculo da quantidade a preparar e arredondamento para cima, inteiro
+        df['quantidade_preparar'] = np.ceil(df['quantidade'] * df['fator']).astype(int)
 
         # Resumo por local e produto
         summary = (
