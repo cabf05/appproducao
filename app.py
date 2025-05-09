@@ -37,10 +37,7 @@ if uploaded_dados and uploaded_cadastro:
             st.stop()
 
         # Renomear colunas para uso interno
-        dados = dados.rename(columns={
-            'produto': 'produto',
-            'quantidade': 'quantidade'
-        })
+        dados = dados.rename(columns={'produto': 'produto', 'quantidade': 'quantidade'})
         cadastro = cadastro.rename(columns={
             'produto': 'produto',
             'local': 'local',
@@ -48,18 +45,15 @@ if uploaded_dados and uploaded_cadastro:
         })
 
         # Junção: traz local e fator para cada produto
-        df = pd.merge(
-            dados,
-            cadastro[['produto', 'local', 'fator']],
-            on='produto',
-            how='left'
-        )
+        df = pd.merge(dados, cadastro[['produto', 'local', 'fator']], on='produto', how='left')
 
         # Tratar registros sem cadastro
         if df[['local', 'fator']].isna().any().any():
             missing_info = df[df['local'].isna() | df['fator'].isna()]['produto'].unique()
-            st.warning(f"Produtos sem cadastro completo (local ou fator faltando): {list(missing_info)}."
-                       + " Usando local='Desconhecido' e fator=1 onde faltarem.")
+            st.warning(
+                f"Produtos sem cadastro completo (local ou fator faltando): {list(missing_info)}. "
+                + "Usando local='Desconhecido' e fator=1 onde faltarem."
+            )
             df['local'] = df['local'].fillna('Desconhecido')
             df['fator'] = df['fator'].fillna(1)
 
@@ -68,9 +62,8 @@ if uploaded_dados and uploaded_cadastro:
 
         # Resumo por local e produto
         summary = (
-            df
-            .groupby(['local', 'produto'], as_index=False)
-            .agg({'quantidade_preparar': 'sum'})
+            df.groupby(['local', 'produto'], as_index=False)
+              .agg({'quantidade_preparar': 'sum'})
         )
 
         # Geração do PDF
@@ -96,7 +89,7 @@ if uploaded_dados and uploaded_cadastro:
                 pdf.cell(0, 8, f"{row['Produto']}: {row['Quantidade a Preparar']}", ln=True)
 
         # Botão de download do PDF
-        pdf_bytes = pdf.output(dest='S').encode('latin1')
+        pdf_bytes = pdf.output(dest='S')  # retorna bytearray
         st.download_button(
             label="Download do resumo em PDF",
             data=pdf_bytes,
